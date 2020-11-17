@@ -111,7 +111,7 @@ class WidgetDetected {
 		var absenceSemantic = this.accessibilityAtributes.semanticLabel === false;
 		var absenceExclude = this.accessibilityAtributes.excludeSemantic === false;
 
-		switch (this.getType()) {
+		switch (this.type) {
 			case 'Text':
 				value = absenceSemantic;
 				break;
@@ -275,7 +275,7 @@ class DartClass {
 		var content = [];
 		var findWidget = false;
 		var accessibilityAtributes = new AccessibilityAtributes();
-		let widget;
+		let widget : WidgetDetected;
 		for (let i = 0; i < this.document.lineCount; i++) {
 			var line = this.document.lineAt(i);
 			var actualLine = line.text;
@@ -283,16 +283,13 @@ class DartClass {
 
 			//Find Widget
 			if (this.findWidgetInLine(actualLine)) {
-				console.log("[findWidget ] ------------- ".concat(actualLine));
-				count++;
-				findWidget = true;
-				firstLine = line;
-				content.push(actualLine)
-				continue;
-			}
 
-			//Read lines below the widget
-			if (findWidget && firstLine != null) {
+				console.log("[findWidget ] ------------- ".concat(actualLine));
+				//Find Close Bracket for Widget
+				count = count + this.findCloseBracket(actualLine);
+				if (actualLine.includes('semanticsLabel:')||actualLine.includes('semanticLabel:')) {
+					accessibilityAtributes.semanticLabel = true;
+				}
 				if (count === 0) {
 					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
 					if (widget.markForImproveAccesbilitiy()) {
@@ -305,22 +302,39 @@ class DartClass {
 					content = [];
 					continue;
 				}
+				findWidget = true;
+				firstLine = line;
+				content.push(actualLine)
+				continue;
+			}
+			
+			//Read lines below the widget
+			if (findWidget && firstLine != null) {
+				if (actualLine.includes('semanticsLabel:')||actualLine.includes('semanticLabel:')) {
+					accessibilityAtributes.semanticLabel = true;
+				}
+				//Search especific property
+				if (count === 0) {
+					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
+					if (widget.markForImproveAccesbilitiy()) {
+						result.push(widget);
+					}
+					firstLine = null;
+					findWidget = false;
+					widget = null;
+					accessibilityAtributes = new AccessibilityAtributes();
+					content = [];
+					continue;
+				}
+				//Find Close Bracket for Widget
+				count = count + this.findCloseBracket(actualLine);
+
+
 				if (!content.includes(actualLine)) {
 					content.push(actualLine);
 				}
 
 
-
-				//Find Close Bracket for Widget
-				if (actualLine.includes(')') || actualLine.includes('}') || actualLine.includes(']')) {
-					count--;
-				} else if (actualLine.includes('(') || actualLine.includes('{') || actualLine.includes('[')) {
-					count++;
-				}
-				//Search especific property
-				if (actualLine.includes('semanticsLabel:')) {
-					accessibilityAtributes.semanticLabel = true;
-				}
 
 			}
 		}
@@ -334,7 +348,17 @@ class DartClass {
 		return result;
 	}
 
-
+	findCloseBracket(line: string): number {
+		var result = 0;
+		for (let i = 0; i < line.length; i++) {
+			if (line.charAt(i) === ')') {
+				result = result - 1;
+			} else if (line.charAt(i) === '(') {
+				result = result + 1;
+			}
+		}
+		return result;
+	}
 
 }
 
@@ -364,13 +388,14 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const editor = vscode.window.activeTextEditor;
-	if (!editor) {
-		return; // No open text editor
-	}
+
 	context.subscriptions.push(vscode.commands.registerCommand('extension.accessibility.activate', () => {
 		// The code you place here will be executed every time your command is executed
 
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return; // No open text editor
+		}
 		const document = editor.document;
 		findFeatures(editor, workspaceState);
 		console.log("finish!!!");
@@ -400,7 +425,7 @@ export function activate(context: vscode.ExtensionContext) {
 	if (vscode.extensions.getExtension('dart-code.dart-code') !== undefined) {
 		let statusButtons = createButtons(buttons);
 		watchEditors(statusButtons);
-		updateStatusbar(editor, statusButtons);
+		updateStatusbar(vscode.window.activeTextEditor, statusButtons);
 	}
 }
 
