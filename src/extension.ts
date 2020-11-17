@@ -251,8 +251,10 @@ class DartClass {
 	findWidgetInLine(line: string) {
 		var result = false;
 		widgets.forEach((widget) => {
+			console.log(widget, '----------- Widget');
 			if (line.includes(widget.concat('('))) {
 				result = true;
+				
 			}
 		});
 		return result;
@@ -279,6 +281,7 @@ class DartClass {
 		for (let i = 0; i < this.document.lineCount; i++) {
 			var line = this.document.lineAt(i);
 			var actualLine = line.text;
+			console.log(actualLine, '---------------[line]');
 
 
 			//Find Widget
@@ -350,10 +353,10 @@ class DartClass {
 
 	findCloseBracket(line: string): number {
 		var result = 0;
-		for (let i = 0; i < line.length; i++) {
-			if (line.charAt(i) === ')') {
+		for (let x = 0; x < line.length; x++) {
+			if (line.charAt(x) === ')') {
 				result = result - 1;
-			} else if (line.charAt(i) === '(') {
+			} else if (line.charAt(x) === '(') {
 				result = result + 1;
 			}
 		}
@@ -366,9 +369,8 @@ export const findFeatures = async (editor: vscode.TextEditor, context: vscode.Me
 	// let buff = editor.document.getText();
 	// let lines = buff.split('\n');
 
-	let document = editor.document;
 
-	let dartClass = new DartClass(editor, document, outputChannel);
+	let dartClass = new DartClass(editor, editor.document, outputChannel);
 
 	await dartClass.identifyWidgets();
 }
@@ -392,18 +394,16 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('extension.accessibility.activate', () => {
 		// The code you place here will be executed every time your command is executed
 
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
+		if (!vscode.window.activeTextEditor) {
 			return; // No open text editor
 		}
-		const document = editor.document;
-		findFeatures(editor, workspaceState);
+		findFeatures(vscode.window.activeTextEditor, workspaceState);
 		console.log("finish!!!");
-
 
 		vscode.workspace.onDidSaveTextDocument((a) => {
 			setTimeout(() => {
-				findFeatures(editor, workspaceState);
+				findFeatures(vscode.window.activeTextEditor, workspaceState);
+				console.log("finish!!!");
 			}, 40);
 		});
 	}));
