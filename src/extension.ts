@@ -31,22 +31,21 @@ const defaultDecoration = vscode.window.createTextEditorDecorationType(<vscode.D
 	textDecoration: 'none; opacity: 1', borderWidth: '0px',
 });
 
-// export enum TypeWidgetsDetected {
-// 	Text,
-// 	Image,
-// 	Button,
-// 	TextInput,
-// 	Icon,
-// 	None,
-// }
-
 class AccessibilityAtributes {
 	public semanticLabel: boolean;
 	public excludeSemantic: boolean;
+	public labelTextFormField: boolean;
+	public hintTextFormField: boolean;
 
-	constructor(semanticLabel: boolean = false, excludeSemantic: boolean = false) {
+
+	constructor(semanticLabel: boolean = false,
+		excludeSemantic: boolean = false,
+		labelTextFormField: boolean = false,
+		hintTextFormField: boolean = false,) {
 		this.semanticLabel = semanticLabel;
 		this.excludeSemantic = excludeSemantic;
+		this.labelTextFormField = labelTextFormField;
+		this.hintTextFormField = hintTextFormField;
 	}
 }
 
@@ -55,6 +54,7 @@ class WidgetDetected {
 	type: string;
 	firstLine: vscode.TextLine;
 	content: Array<string>;
+	
 
 	constructor(type: string,
 		accessibilityAtributes: AccessibilityAtributes,
@@ -66,30 +66,11 @@ class WidgetDetected {
 		this.content = content;
 	}
 
+
+	
 	getType(): string {
 		return this.type;
 	}
-	// getTypeInString(): string {
-	// 	var value = "";
-	// 	switch (this.type) {
-	// 		case TypeWidgetsDetected.Text:
-	// 			value = 'Text';
-	// 			break;
-	// 		case TypeWidgetsDetected.Image:
-	// 			value = 'Image';
-	// 			break;
-	// 		case TypeWidgetsDetected.Icon:
-	// 			value = 'Icon';
-	// 			break;
-	// 		case TypeWidgetsDetected.Button:
-	// 			value = 'Button';
-	// 			break;
-	// 		default:
-	// 			value = 'None';
-	// 			break;
-	// 	}
-	// 	return value;
-	// }
 
 	toString(): string {
 		let msg;
@@ -110,6 +91,8 @@ class WidgetDetected {
 		var value = false;
 		var absenceSemantic = this.accessibilityAtributes.semanticLabel === false;
 		var absenceExclude = this.accessibilityAtributes.excludeSemantic === false;
+		var absenceLabelTextFormField = this.accessibilityAtributes.labelTextFormField === false;
+		var absenceHintTextFormField = this.accessibilityAtributes.hintTextFormField === false;
 
 		switch (this.type) {
 			case 'Text':
@@ -125,9 +108,16 @@ class WidgetDetected {
 			case 'Icon':
 				value = absenceSemantic;
 				break;
-			case 'Button':
+			case 'IconButton':
+			case 'MaterialButton':
+			case 'OutlineButton':
+			case 'RaisedButton':
+			case 'TextButton':
+			case 'FlatButton':
 				value = absenceSemantic || absenceExclude;
 				break;
+			case 'TextFormField':
+				value = absenceLabelTextFormField || absenceHintTextFormField;
 			default:
 				value = absenceSemantic || absenceExclude;
 				break;
@@ -139,11 +129,19 @@ class WidgetDetected {
 
 const widgets = [
 	'Text',
+	'Image',
 	'Image.network',
 	'Image.asset',
-	'Image',
-	'Button',
+	'Image.memory',
+	'Image.file',
+	'IconButton',
+	'FlatButton',
+	'MaterialButton',
+	'OutlineButton',
+	'RaisedButton',
+	'TextButton',
 	'Icon',
+	'TextFormField',
 ]
 
 class DartClass {
@@ -182,26 +180,43 @@ class DartClass {
 		switch (type) {
 			case 'Text':
 				value =
-					'By default the screen reader read the same value in the text. And sometimes this could be confuse for the user.';
+					'Text by default change the semantic label for the text value.\n';
+				value += 'RECOMMENDATION:\n';
+				value += '.\n';
+
 				break;
 			case 'Image':
 			case 'Image.network':
 			case 'Image.asset':
 			case 'Image.memory':
 			case 'Image.file':
-				value = 'Images dont have label by default. For this reason can be confused for the users';
+				value = 'Images don\'t have semantic label by default. For this reason can be confused for the users.';
+				value += 'RECOMMENDATION:\n';
+				value += 'If image is in the backgroudn or is only for decoration,it not need property semantic label.\n';
+				value += 'If image will give information to the user, it need property semantic label.';
 				break;
 			case 'Icon':
-				value = '';
+				value = 'Icons by default don\'t have labels, for this reason people that use screen readers(TalkBack and VoiceOver) never will find this icon.\n';
+				value += 'RECOMMENDATION:\n';
+				value += 'If icon is only for decoration,it not need property semantic label.\n';
+				value += 'If icon open or active new functionality,it need property semantic label.';
 				break;
-			case 'Button':
-				value = '';
+			case 'IconButton':
+			case 'MaterialButton':
+			case 'OutlineButton':
+			case 'RaisedButton':
+			case 'TextButton':
+			case 'FlatButton':
+				value = 'Button by default have the semantic label "Button" and this label don\'t give information about the action that will do when press the button\n';
+				value += 'RECOMMENDATION:\n';
+				value += 'Wrap the button widget in Semantics widget and change the property label with the action that do the button like "Back Button"\n';
 				break;
-			case 'TextInput':
+			case 'TextFormField':
 				value = '';
 				break;
 			default:
-				value = 'Find more info about accesbility in : ';
+				value = 'Find more info about accesbility in : \n';
+				value += 'https://flutter.dev/docs/development/accessibility-and-localization/accessibility';
 				break;
 		}
 		return value;
@@ -213,19 +228,25 @@ class DartClass {
 
 		this.outputChannel.clear();
 
+		var initialMessage = 'Remember that you can see labels that will read screen readers(TalkBack and VoiceOver).\n';
+		initialMessage += 'This function can be active with this property: \n\nMaterialApp(\n showSemanticsDebugger: true, \n);\n\n';
+		initialMessage += 'Find more info about accesbility in: \n';
+		initialMessage += 'https://flutter.dev/docs/development/accessibility-and-localization/accessibility \n';
+
+		this.outputChannel.appendLine(initialMessage);
 
 		if (data.length === 0) {
 
 			this.editor.setDecorations(textDecoration, []);
 
 			setTimeout(() => {
-				vscode.window.showInformationMessage('Your program is now more accesible');
+				vscode.window.showInformationMessage('This file is now more accesible');
 			}, 40)
 
 		} else {
 			for (let i = 0; i < data.length; i++) {
 				var textline = data[i].firstLine;
-				this.outputChannel.appendLine(`| Line ${textline.lineNumber + 1} | Widget: ${this.getTypeFromLine(textline.text)} | \n${this.getAdvice(data[i].type)}`);
+				this.outputChannel.appendLine(`| Line ${textline.lineNumber + 1} → Widget: ${this.getTypeFromLine(textline.text)} | \n${this.getAdvice(data[i].type)}`);
 				this.outputChannel.appendLine('');
 				let range = textline.range;
 				rangeList.push(range);
@@ -235,7 +256,6 @@ class DartClass {
 					this.editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 				}
 			}
-			console.log(this.editor.selections, 'selections[data = muchos]')
 			this.editor.setDecorations(textDecoration, rangeList);
 			setTimeout(() => {
 				vscode.window.showInformationMessage(`Detected ${data.length} ${data.length === 1 ? 'widget' : 'widgets'} that can improve accessibility`);
@@ -251,10 +271,9 @@ class DartClass {
 	findWidgetInLine(line: string) {
 		var result = false;
 		widgets.forEach((widget) => {
-			console.log(widget, '----------- Widget');
 			if (line.includes(widget.concat('('))) {
 				result = true;
-				
+
 			}
 		});
 		return result;
@@ -276,48 +295,24 @@ class DartClass {
 		let count = 0;
 		var content = [];
 		var findWidget = false;
-		var accessibilityAtributes = new AccessibilityAtributes();
-		let widget : WidgetDetected;
+		var accessibilityAtributes:AccessibilityAtributes = new AccessibilityAtributes();
+		let widget;
 		for (let i = 0; i < this.document.lineCount; i++) {
 			var line = this.document.lineAt(i);
 			var actualLine = line.text;
-			console.log(actualLine, '---------------[line]');
 
 
 			//Find Widget
 			if (this.findWidgetInLine(actualLine)) {
-
 				console.log("[findWidget ] ------------- ".concat(actualLine));
-				//Find Close Bracket for Widget
-				count = count + this.findCloseBracket(actualLine);
-				if (actualLine.includes('semanticsLabel:')||actualLine.includes('semanticLabel:')) {
-					accessibilityAtributes.semanticLabel = true;
-				}
-				if (count === 0) {
-					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
-					if (widget.markForImproveAccesbilitiy()) {
-						result.push(widget);
-					}
-					firstLine = null;
-					findWidget = false;
-					widget = null;
-					accessibilityAtributes = new AccessibilityAtributes();
-					content = [];
-					continue;
-				}
+
 				findWidget = true;
 				firstLine = line;
-				content.push(actualLine)
-				continue;
-			}
-			
-			//Read lines below the widget
-			if (findWidget && firstLine != null) {
-				if (actualLine.includes('semanticsLabel:')||actualLine.includes('semanticLabel:')) {
-					accessibilityAtributes.semanticLabel = true;
-				}
-				//Search especific property
-				if (count === 0) {
+				content.push(actualLine);
+				//Find Close Bracket for Widget
+				count = this.findCloseBracket(actualLine,0);
+				this.setAccessibilityAtributtes(actualLine,accessibilityAtributes);
+				if (count === 0 && firstLine !== null) {
 					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
 					if (widget.markForImproveAccesbilitiy()) {
 						result.push(widget);
@@ -329,15 +324,34 @@ class DartClass {
 					content = [];
 					continue;
 				}
-				//Find Close Bracket for Widget
-				count = count + this.findCloseBracket(actualLine);
+				continue;
+			}
 
+			//Read lines below the widget
+			if (findWidget && firstLine !== null ) {
 
 				if (!content.includes(actualLine)) {
 					content.push(actualLine);
 				}
+				//Find Close Bracket for Widget
+				var finalCount = this.findCloseBracket(actualLine,count);
+				this.setAccessibilityAtributtes(actualLine,accessibilityAtributes);
 
-
+				if (finalCount !== 0) {
+					count = finalCount;
+				} else {
+					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
+					if (widget.markForImproveAccesbilitiy()) {
+						result.push(widget);
+					}
+					firstLine = null;
+					findWidget = false;
+					widget = null;
+					accessibilityAtributes = new AccessibilityAtributes();
+					content = [];
+					count = 0;
+					continue;
+				}
 
 			}
 		}
@@ -351,12 +365,32 @@ class DartClass {
 		return result;
 	}
 
-	findCloseBracket(line: string): number {
-		var result = 0;
+	setAccessibilityAtributtes(actualLine:string,access:AccessibilityAtributes){
+	if (actualLine.includes('semanticsLabel:') || actualLine.includes('semanticLabel:')) {
+		access.semanticLabel = true;
+	}
+	if (actualLine.includes('excludeFromSemantics:')) {
+		access.excludeSemantic = true;
+	}
+	//Validate accessibility label in TextFormField
+	if (actualLine.includes('labelText:')) {
+		access.labelTextFormField = true;
+	}
+	if (actualLine.includes('hintText:')) {
+		access.hintTextFormField = true;
+	}
+}
+
+	findCloseBracket(line: string,actualCounter:number): number {
+		var result = actualCounter;
+		line.replace(' ','');
 		for (let x = 0; x < line.length; x++) {
-			if (line.charAt(x) === ')') {
+			if (line.charAt(x) === ")") {
 				result = result - 1;
-			} else if (line.charAt(x) === '(') {
+				if (result === 0) {
+					return result;
+				}
+			} else if (line.charAt(x) === "(") {
 				result = result + 1;
 			}
 		}
@@ -385,7 +419,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "Accessibility" is now active!');
-	var workspaceState = context.workspaceState;
+
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -393,32 +427,29 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('extension.accessibility.activate', () => {
 		// The code you place here will be executed every time your command is executed
-
+		var workspaceState = context.workspaceState;
 		if (!vscode.window.activeTextEditor) {
 			return; // No open text editor
 		}
-		findFeatures(vscode.window.activeTextEditor, workspaceState);
-		console.log("finish!!!");
+		if (vscode.window.activeTextEditor !== null && vscode.window.activeTextEditor !== undefined) {
+			findFeatures(vscode.window.activeTextEditor, workspaceState);
+			console.log("finish!!!");
 
-		vscode.workspace.onDidSaveTextDocument((a) => {
-			setTimeout(() => {
-				findFeatures(vscode.window.activeTextEditor, workspaceState);
-				console.log("finish!!!");
-			}, 40);
-		});
+			vscode.workspace.onDidSaveTextDocument((a) => {
+				setTimeout(() => {
+					if (vscode.window.activeTextEditor !== null && vscode.window.activeTextEditor !== undefined) {
+						findFeatures(vscode.window.activeTextEditor, workspaceState);
+						console.log("finish!!!");
+					}
+				}, 40);
+			});
+		}
 	}));
 
-	// context.subscriptions.push(vscode.commands.registerCommand('extension.accessibility.desactive', () => {
-	// 	// The code you place here will be executed every time your command is executed
-
-	// 	context.subscriptions.pop();
-	// 	const editor = vscode.window.activeTextEditor;
-	// 	if (!editor) {
-	// 		return; // No open text editor
-	// 	}
-	// 	editor.setDecorations(textDecoration,[]);
-
-	// }))
+	context.subscriptions.push(vscode.commands.registerCommand('extension.accessibility.desactive', () => {
+		// The code you place here will be executed every time your command is executed
+		deactivate();
+	}))
 
 
 
@@ -431,4 +462,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return; // No open text editor
+	}
+	editor.setDecorations(textDecoration, []);
+	vscode.window.showInformationMessage(`Desactivate of Flutter Accesible complete`);
 }
