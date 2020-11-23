@@ -76,10 +76,17 @@ class WidgetDetected {
 		let msg;
 		msg = "type: ".concat(this.type);
 		msg += "\n";
-		msg += "semancitc: ".concat(this.accessibilityAtributes.semanticLabel.toString());
+		if(this.type == 'TextFormField'){
+			msg += "labelText: ".concat(this.accessibilityAtributes.labelTextFormField.toString());
+			msg += "\n";
+			msg += "hintText: ".concat(this.accessibilityAtributes.hintTextFormField.toString());
+			msg += "\n";
+		}else{
+			msg += "semancitc: ".concat(this.accessibilityAtributes.semanticLabel.toString());
 		msg += "\n";
 		msg += "exclude: ".concat(this.accessibilityAtributes.excludeSemantic.toString());
 		msg += "\n";
+		}
 		msg += "fisrtLine: ".concat(this.firstLine.text.concat(this.firstLine.lineNumber.toString()));
 		msg += "\n";
 		msg += "content: ".concat(this.content.toString());
@@ -103,7 +110,10 @@ class WidgetDetected {
 			case 'Image.asset':
 			case 'Image.memory':
 			case 'Image.file':
-				value = absenceSemantic || absenceExclude;
+				value = absenceSemantic;
+				if(value){
+					value = absenceExclude;
+				}  
 				break;
 			case 'Icon':
 				value = absenceSemantic;
@@ -114,12 +124,22 @@ class WidgetDetected {
 			case 'RaisedButton':
 			case 'TextButton':
 			case 'FlatButton':
-				value = absenceSemantic || absenceExclude;
+				value = absenceSemantic;
+				if(value){
+					value = absenceExclude;
+				}  
 				break;
 			case 'TextFormField':
-				value = absenceLabelTextFormField || absenceHintTextFormField;
+				value = absenceLabelTextFormField;
+				if(value){
+					value = absenceHintTextFormField;
+				}
+				break;
 			default:
-				value = absenceSemantic || absenceExclude;
+				value = absenceSemantic;
+				if(value){
+					value = absenceExclude;
+				}  
 				break;
 		}
 		return value;
@@ -181,8 +201,8 @@ class DartClass {
 			case 'Text':
 				value =
 					'Text by default change the semantic label for the text value.\n';
-				value += 'RECOMMENDATION:\n';
-				value += '.\n';
+				value += '🛠 [ RECOMMENDATION ]\n';
+				value += '- If you wanna get extra information, add short description\n';
 
 				break;
 			case 'Image':
@@ -190,16 +210,16 @@ class DartClass {
 			case 'Image.asset':
 			case 'Image.memory':
 			case 'Image.file':
-				value = 'Images don\'t have semantic label by default. For this reason can be confused for the users.';
-				value += 'RECOMMENDATION:\n';
-				value += 'If image is in the backgroudn or is only for decoration,it not need property semantic label.\n';
-				value += 'If image will give information to the user, it need property semantic label.';
+				value = 'Images don\'t have semantic label by default. For this reason can be confused for the users.\n';
+				value += '🛠 [ RECOMMENDATION ]\n';
+				value += '- If image is in the background or is only for decoration,it not need property semantic label.\n';
+				value += '- If image will give information to the user, it need property semantic label.\n';
 				break;
 			case 'Icon':
 				value = 'Icons by default don\'t have labels, for this reason people that use screen readers(TalkBack and VoiceOver) never will find this icon.\n';
-				value += 'RECOMMENDATION:\n';
-				value += 'If icon is only for decoration,it not need property semantic label.\n';
-				value += 'If icon open or active new functionality,it need property semantic label.';
+				value += '🛠 [ RECOMMENDATION ]\n';
+				value += '- If icon is only for decoration,it not need property semantic label.\n';
+				value += '- If icon open or active new functionality,it need property semantic label.\n';
 				break;
 			case 'IconButton':
 			case 'MaterialButton':
@@ -208,11 +228,13 @@ class DartClass {
 			case 'TextButton':
 			case 'FlatButton':
 				value = 'Button by default have the semantic label "Button" and this label don\'t give information about the action that will do when press the button\n';
-				value += 'RECOMMENDATION:\n';
+				value += '🛠 [ RECOMMENDATION ]\n';
 				value += 'Wrap the button widget in Semantics widget and change the property label with the action that do the button like "Back Button"\n';
 				break;
 			case 'TextFormField':
-				value = '';
+				value = 'TexFormField by default have the semantic label "TexField"\n';
+				value += '🛠 [ RECOMMENDATION ]\n';
+				value += '- Add labelText or hintText property to complement the default semantic label';
 				break;
 			default:
 				value = 'Find more info about accesbility in : \n';
@@ -229,9 +251,9 @@ class DartClass {
 		this.outputChannel.clear();
 
 		var initialMessage = 'Remember that you can see labels that will read screen readers(TalkBack and VoiceOver).\n';
-		initialMessage += 'This function can be active with this property: \n\nMaterialApp(\n showSemanticsDebugger: true, \n);\n\n';
+		initialMessage += 'This function can be active with follow property: \n\nMaterialApp(\n showSemanticsDebugger: true, \n);\n\n';
 		initialMessage += 'Find more info about accesbility in: \n';
-		initialMessage += 'https://flutter.dev/docs/development/accessibility-and-localization/accessibility \n';
+		initialMessage += 'https://flutter.dev/docs/development/accessibility-and-localization/accessibility \n\n';
 
 		this.outputChannel.appendLine(initialMessage);
 
@@ -244,9 +266,11 @@ class DartClass {
 			}, 40)
 
 		} else {
+			this.outputChannel.appendLine(`[#] Found ${data.length} ${data.length ===1 ?'widget':'widgets'} with possible accessibility improvements\n`);
+
 			for (let i = 0; i < data.length; i++) {
 				var textline = data[i].firstLine;
-				this.outputChannel.appendLine(`| Line ${textline.lineNumber + 1} → Widget: ${this.getTypeFromLine(textline.text)} | \n${this.getAdvice(data[i].type)}`);
+				this.outputChannel.appendLine(`🟡 | Line ${textline.lineNumber + 1} → Widget: ${this.getTypeFromLine(textline.text)} | \n${this.getAdvice(data[i].type)}`);
 				this.outputChannel.appendLine('');
 				let range = textline.range;
 				rangeList.push(range);
@@ -304,7 +328,7 @@ class DartClass {
 
 			//Find Widget
 			if (this.findWidgetInLine(actualLine)) {
-				console.log("[findWidget ] ------------- ".concat(actualLine));
+				console.log("[findWidget ] ------------- ".concat(actualLine.replace(' ','')));
 
 				findWidget = true;
 				firstLine = line;
@@ -327,7 +351,7 @@ class DartClass {
 				continue;
 			}
 
-			//Read lines below the widget
+			//Read lines inside the widget
 			if (findWidget && firstLine !== null ) {
 
 				if (!content.includes(actualLine)) {
@@ -335,12 +359,15 @@ class DartClass {
 				}
 				//Find Close Bracket for Widget
 				var finalCount = this.findCloseBracket(actualLine,count);
-				this.setAccessibilityAtributtes(actualLine,accessibilityAtributes);
 
+				this.setAccessibilityAtributtes(actualLine,accessibilityAtributes);
+			
 				if (finalCount !== 0) {
 					count = finalCount;
 				} else {
+
 					widget = new WidgetDetected(this.getTypeFromLine(firstLine.text), accessibilityAtributes, firstLine, content);
+
 					if (widget.markForImproveAccesbilitiy()) {
 						result.push(widget);
 					}
@@ -356,7 +383,7 @@ class DartClass {
 			}
 		}
 
-		console.log(result.length.toString());
+		console.log('Widget to improve ',result.length.toString());
 		for (let j = 0; j < result.length; j++) {
 
 			console.log(result[j].toString());
